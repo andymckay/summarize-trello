@@ -5,10 +5,18 @@ var listStore = new Map();
 
 var boards = ['PC9kB14s', 'ZpIDuMAW', 'CR0YNhHg'];
 
+// Don't take this personally.
+var boardColours = {
+  'PC9kB14s': 'primary',
+  'ZpIDuMAW': 'default',
+  'CR0YNhHg': 'success'
+};
+
 function loadBoard(board) {
   return new Promise(function(resolve, reject) {
     let board_response = Trello.boards.get(`${board}`);
     board_response.then((board_obj) => {
+      board_obj.idURL = board;
       boardStore.set(board, board_obj);
     }).then(() => {
       resolve();
@@ -87,7 +95,10 @@ function cell(title) {
 function addCardToTable(element, board, card) {
   let row = document.createElement('tr');
   row.id = `card-${card.id}`;
-  row.appendChild(cellLink(board.name, board.url));
+  let boardCell = cellLink(board.name, board.url);
+  console.log(board.id);
+  boardCell.firstChild.className = `label label-${boardColours[board.idURL]}`;
+  row.appendChild(boardCell);
   row.appendChild(cellLink(card.name, card.url));
   let labels = [];
   for (let id of card.idLabels) {
@@ -104,6 +115,10 @@ function populateTable(element) {
   }
 }
 
+function intersectionLength(x, y) {
+  return x.filter((n) => y.includes(n)).length;
+}
+
 function filter(e) {
   let ids = [];
   let filter = e.target.dataset.value || null;
@@ -111,18 +126,15 @@ function filter(e) {
     let filter_values = filter.split(',');
     console.log('[trello] Filtering on:', filter_values);
     for (let label of labelStore.values()) {
-      console.log(label.label.name);
       if (filter_values.includes(label.label.name.toLowerCase())) {
         ids.push(label.label.id);
       }
     }
   }
 
-  console.log(ids);
-
   for (let card of cardStore.values()) {
     let display = document.getElementById(`card-${card.card.id}`);
-    if (!filter || card.card.idLabels.filter((n) => ids.includes(n)).length) {
+    if (!filter || intersectionLength(card.card.idLabels, ids)) {
       display.style.display = null;
     } else {
       display.style.display = 'none';
@@ -131,7 +143,7 @@ function filter(e) {
 }
 
 document.addEventListener("DOMContentLoaded", (event) => {
-  let populateBoards = boards.map((v) => { return populateBoard(v)});
+  let populateBoards = boards.map((v) => { return populateBoard(v); });
   let element = document.getElementById('output');
   Promise.all(populateBoards).then((response) => {
     populateTable(element);
